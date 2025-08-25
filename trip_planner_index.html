@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Our Next Adventures ✈️</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* small extra styles (Tailwind does most of the work) */
+    body { background: linear-gradient(180deg, #f8fafc 0%, #fff 100%); }
+    .card-img { height: 220px; width: 100%; object-fit: cover; }
+  </style>
+</head>
+<body class="min-h-screen flex items-start justify-center p-6">
+  <div class="w-full max-w-3xl">
+
+    <!-- Header photo (keep the photo file named 'photo.jpg' in the same folder as this file) -->
+    <div class="flex justify-center mb-6">
+      <div class="rounded-2xl overflow-hidden shadow-lg max-w-md w-full">
+        <img id="headerPhoto" src="photo.jpg" alt="Header photo" class="card-img" onerror="this.style.opacity=.5; this.alt='Put photo.jpg in the same folder as index.html'">
+      </div>
+    </div>
+
+    <!-- Title -->
+    <h1 class="text-3xl font-semibold text-slate-800 text-center mb-6">Our Next Adventures ✈️</h1>
+
+    <!-- Form -->
+    <div class="bg-white rounded-2xl shadow p-5 mb-6">
+      <form id="tripForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">Departure</label>
+          <input id="departure" class="w-full rounded-md border px-3 py-2" placeholder="City or airport (e.g. Berlin)" required>
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">Destination</label>
+          <input id="destination" class="w-full rounded-md border px-3 py-2" placeholder="City or country (e.g. Mexico City)" required>
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">Start date</label>
+          <input id="startDate" type="date" class="w-full rounded-md border px-3 py-2" required>
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">End date</label>
+          <input id="endDate" type="date" class="w-full rounded-md border px-3 py-2" required>
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-600 mb-1">Price (EUR)</label>
+          <input id="price" type="number" min="0" step="0.01" class="w-full rounded-md border px-3 py-2" placeholder="e.g. 350.00">
+        </div>
+
+        <div class="flex items-end">
+          <button id="addBtn" type="submit" class="w-full bg-indigo-600 text-white rounded-md px-4 py-2 shadow hover:bg-indigo-700">Add trip</button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- Trips list -->
+    <div id="tripsContainer" class="grid gap-4 md:grid-cols-2"></div>
+
+    <!-- Empty state -->
+    <p id="emptyState" class="text-center text-slate-500 mt-6">No trips yet — add your first trip above ✨</p>
+
+  </div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'our_next_adventures_trips_v1';
+  const form = document.getElementById('tripForm');
+  const departureEl = document.getElementById('departure');
+  const destinationEl = document.getElementById('destination');
+  const startDateEl = document.getElementById('startDate');
+  const endDateEl = document.getElementById('endDate');
+  const priceEl = document.getElementById('price');
+  const tripsContainer = document.getElementById('tripsContainer');
+  const emptyState = document.getElementById('emptyState');
+
+  let trips = loadTrips();
+  renderTrips();
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    addTrip();
+  });
+
+  function loadTrips(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){
+      console.error('Failed to load trips', e);
+      return [];
+    }
+  }
+
+  function saveTrips(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
+  }
+
+  function addTrip(){
+    const departure = departureEl.value.trim();
+    const destination = destinationEl.value.trim();
+    const startDate = startDateEl.value;
+    const endDate = endDateEl.value;
+    const price = priceEl.value ? Number(priceEl.value) : null;
+
+    if(!departure || !destination || !startDate || !endDate){
+      alert('Please fill departure, destination and dates.');
+      return;
+    }
+
+    if(new Date(endDate) < new Date(startDate)){
+      alert('End date must be the same or after the start date.');
+      return;
+    }
+
+    const trip = {
+      id: Date.now().toString(),
+      departure, destination, startDate, endDate, price
+    };
+
+    trips.unshift(trip); // newest first
+    saveTrips();
+    renderTrips();
+    form.reset();
+  }
+
+  function deleteTrip(id){
+    if(!confirm('Delete this trip?')) return;
+    trips = trips.filter(t => t.id !== id);
+    saveTrips();
+    renderTrips();
+  }
+
+  function formatDate(d){
+    try{
+      const dt = new Date(d);
+      return dt.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric'});
+    }catch(e){ return d; }
+  }
+
+  function daysBetween(a,b){
+    const ad = new Date(a);
+    const bd = new Date(b);
+    const msPerDay = 24*60*60*1000;
+    return Math.round((bd - ad)/msPerDay) + 1; // inclusive
+  }
+
+  function renderTrips(){
+    tripsContainer.innerHTML = '';
+    if(trips.length === 0){
+      emptyState.style.display = 'block';
+      return;
+    } else {
+      emptyState.style.display = 'none';
+    }
+
+    trips.forEach(trip => {
+      const card = document.createElement('div');
+      card.className = 'bg-white rounded-2xl shadow p-4 flex flex-col';
+
+      const title = document.createElement('div');
+      title.className = 'flex items-start justify-between';
+
+      const left = document.createElement('div');
+      left.innerHTML = `<div class=\"text-lg font-semibold text-slate-800\">${escapeHtml(trip.departure)} → ${escapeHtml(trip.destination)}</div>
+                        <div class=\"text-sm text-slate-500 mt-1\">${formatDate(trip.startDate)} — ${formatDate(trip.endDate)} • ${daysBetween(trip.startDate, trip.endDate)} days</div>`;
+
+      const right = document.createElement('div');
+      right.className = 'text-right';
+      right.innerHTML = `<div class=\"text-sm text-slate-700 font-medium\">${trip.price!=null ? formatPrice(trip.price) : '—'}</div>`;
+
+      title.appendChild(left);
+      title.appendChild(right);
+
+      const actions = document.createElement('div');
+      actions.className = 'mt-4 flex gap-2';
+      actions.innerHTML = `
+        <button class=\"flex-1 px-3 py-2 rounded-md border text-sm text-slate-700 hover:bg-slate-50\" data-action=\"view\">View</button>
+        <button class=\"px-3 py-2 rounded-md bg-red-100 text-red-700 text-sm hover:bg-red-200\" data-action=\"delete\">Delete</button>
+      `;
+
+      actions.querySelector('[data-action=view]').addEventListener('click', ()=>{
+        alert(`${trip.departure} → ${trip.destination}\n${formatDate(trip.startDate)} — ${formatDate(trip.endDate)} (${daysBetween(trip.startDate, trip.endDate)} days)\nPrice: ${trip.price!=null ? formatPrice(trip.price) : '—'}`);
+      });
+
+      actions.querySelector('[data-action=delete]').addEventListener('click', ()=> deleteTrip(trip.id));
+
+      card.appendChild(title);
+      card.appendChild(actions);
+
+      tripsContainer.appendChild(card);
+    });
+  }
+
+  function formatPrice(n){
+    try{
+      return Number(n).toLocaleString(undefined, {style:'currency', currency:'EUR'});
+    }catch(e){ return n; }
+  }
+
+  // simple HTML escape to avoid injection if someone pastes weird content
+  function escapeHtml(s){
+    return String(s).replace(/[&<>\"']/g, (c)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+})();
+</script>
+</body>
+</html>
